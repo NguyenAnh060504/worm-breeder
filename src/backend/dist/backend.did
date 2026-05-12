@@ -1,0 +1,47 @@
+type WormId = nat;
+type Worm = 
+ record {
+   body: BodyPart;
+   element: Element;
+   head: BodyPart;
+   id: WormId;
+   tail: BodyPart;
+ };
+type NewWorm = 
+ record {
+   body: BodyPart;
+   element: Element;
+   head: BodyPart;
+   tail: BodyPart;
+ };
+type MutationVariant = 
+ variant {
+   Gradient;
+   Metallic;
+   Solid;
+   Spotted;
+   Striped;
+ };
+type Element = 
+ variant {
+   Earth;
+   Electric;
+   Grass;
+   Water;
+ };
+type BodyPart = 
+ record {
+   element: Element;
+   mutation: MutationVariant;
+ };
+service : {
+  addWorm: (newWorm: NewWorm) -> (variant {
+                                    err: text;
+                                    ok: WormId;
+                                  });
+  deleteWorm: (id: WormId) -> (variant {
+                                 err: text;
+                                 ok;
+                               });
+  getWorms: () -> (vec Worm);
+}

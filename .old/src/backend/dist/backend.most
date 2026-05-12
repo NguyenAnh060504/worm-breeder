@@ -1,0 +1,26 @@
+// Version: 1.0.0
+type BodyPart__784413800 =
+  {element : Element__38271132; mutation : MutationVariant__268188639};
+type Element__38271132 = {#Earth; #Electric; #Grass; #Water};
+type MutationVariant__268188639 =
+  {#Gradient; #Metallic; #Solid; #Spotted; #Striped};
+type Nat__490723111 = Nat__920180692;
+type Nat__920180692 = Nat;
+type WormId__640679825 = Nat;
+type Worm__854540632 =
+  {
+    body : BodyPart__784413800;
+    element : Element__38271132;
+    head : BodyPart__784413800;
+    id : WormId__640679825;
+    tail : BodyPart__784413800
+  };
+actor {
+  stable state : {var nextWormId : Nat};
+  stable worms :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?Worm__854540632]];
+      var elementIndex : Nat__490723111
+    }
+};

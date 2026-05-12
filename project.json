@@ -1,0 +1,19 @@
+{
+  "overview": "A casual worm breeding game inspired by Clusterduck. Collect up to 20 elemental worms — Electric, Earth, Grass, and Water — each with 3 mix-and-match body parts. Breed two worms to hatch offspring with randomized trait inheritance or rare mutations, and delete worms to make room for new ones.",
+  "features": [
+    "4 elemental worm types with distinct color themes (Electric, Earth, Grass, Water)",
+    "3 mix-and-match body parts per worm (head, body, tail) with visible mutations",
+    "Breed any two selected worms to get a new offspring with random trait inheritance",
+    "Collection of up to 20 worms with persistent storage",
+    "Tap to select, delete button to remove worms"
+  ],
+  "category": "game",
+  "tags": [
+    "game",
+    "breeding",
+    "collection",
+    "casual",
+    "mutation"
+  ],
+  "last_updated": "2026-05-12T06:35:40.065Z"
+}

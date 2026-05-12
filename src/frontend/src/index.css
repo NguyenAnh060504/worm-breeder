@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Figtree";
+  src: url("/assets/fonts/Figtree.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DMSans";
+  src: url("/assets/fonts/DMSans.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GeistMono";
+  src: url("/assets/fonts/GeistMono.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    /* Dark Fantasy Magic Garden - Deep Night Palette */
+    --background: 98 0.01 80;
+    --foreground: 15 0.04 265;
+
+    --card: 99 0.005 80;
+    --card-foreground: 15 0.04 265;
+
+    --popover: 99 0.005 80;
+    --popover-foreground: 15 0.04 265;
+
+    --primary: 72 0.24 130;
+    --primary-foreground: 99 0.005 80;
+
+    --secondary: 65 0.22 40;
+    --secondary-foreground: 99 0.005 80;
+
+    --muted: 88 0.03 80;
+    --muted-foreground: 50 0.05 265;
+
+    --accent: 55 0.26 25;
+    --accent-foreground: 99 0.005 80;
+
+    --destructive: 55 0.25 25;
+    --destructive-foreground: 99 0.005 80;
+
+    --border: 85 0.04 80;
+    --input: 95 0.02 80;
+    --ring: 72 0.24 130;
+
+    --radius: 1rem;
+
+    /* Magic-specific tokens */
+    --magic-gold: 82 0.18 85;
+    --magic-purple: 55 0.28 305;
+    --magic-blue: 50 0.24 265;
+    --magic-green: 70 0.24 145;
+    --magic-glow: 78 0.32 310;
+
+    --chart-1: 82 0.28 100;
+    --chart-2: 52 0.22 50;
+    --chart-3: 72 0.28 130;
+    --chart-4: 60 0.26 265;
+    --chart-5: 55 0.26 25;
+
+    --sidebar: 99 0.005 80;
+    --sidebar-foreground: 15 0.04 265;
+    --sidebar-primary: 72 0.24 130;
+    --sidebar-primary-foreground: 99 0.005 80;
+    --sidebar-accent: 55 0.26 25;
+    --sidebar-accent-foreground: 99 0.005 80;
+    --sidebar-border: 85 0.04 80;
+    --sidebar-ring: 72 0.24 130;
+    /* Font tokens */
+    --font-display: "Figtree", sans-serif;
+    --font-body: "DMSans", sans-serif;
+    --font-mono: "GeistMono", monospace;
+
+    /* Room-specific gradients (for reference) */
+    --room-living: 65 0.22 25;
+    --room-bedroom: 60 0.18 290;
+    --room-kitchen: 65 0.24 130;
+    --room-bathroom: 65 0.2 190;
+
+    --worm-electric: 82 0.28 100;
+    --worm-electric-dark: 50 0.32 265;
+    --worm-earth: 52 0.22 50;
+    --worm-earth-light: 72 0.14 50;
+    --worm-grass: 72 0.28 130;
+    --worm-grass-light: 85 0.12 130;
+    --worm-water: 60 0.26 265;
+    --worm-water-light: 78 0.18 265;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+  }
+}
+
+@layer utilities {
+  /* Worm elemental type badges */
+  .badge-electric {
+    @apply bg-[oklch(var(--worm-electric))] text-foreground font-semibold rounded-full px-3 py-1;
+  }
+  .badge-earth {
+    @apply bg-[oklch(var(--worm-earth))] text-white font-semibold rounded-full px-3 py-1;
+  }
+  .badge-grass {
+    @apply bg-[oklch(var(--worm-grass))] text-white font-semibold rounded-full px-3 py-1;
+  }
+  .badge-water {
+    @apply bg-[oklch(var(--worm-water))] text-white font-semibold rounded-full px-3 py-1;
+  }
+  .worm-card {
+    @apply rounded-2xl bg-card border-2 border-border shadow-sm transition-all duration-200 hover:shadow-md cursor-pointer;
+  }
+  .worm-card.selected {
+    @apply border-primary shadow-lg ring-2 ring-primary/30 scale-105;
+  }
+  .body-part {
+    @apply rounded-lg border border-border bg-muted/40 flex items-center justify-center text-sm font-medium transition-all duration-200;
+  }
+  .body-part.highlighted {
+    @apply border-primary bg-primary/10 shadow-md;
+  }
+  .breed-button {
+    @apply bg-primary text-primary-foreground font-semibold rounded-full px-6 py-3 transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95;
+  }
+  .breed-button:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+  .worm-counter {
+    @apply text-sm font-semibold text-muted-foreground;
+  }
+  .worm-counter.max {
+    @apply text-destructive font-bold;
+  }
+}
+
+/* Room gradient backgrounds -- DEPRECATED for worm game */
+/* Worm game card bounce entrance */
+.worm-enter {
+  animation: fade-in-up 0.4s ease-out;
+}
+
+/* Worm game drop zone feedback */
+.drop-zone.drag-over {
+  background: oklch(var(--primary) / 0.2) !important;
+  border: 2px solid oklch(var(--primary) / 0.6) !important;
+  transform: scale(1.02);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: oklch(95 0.01 80);
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(80 0.06 80);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(65 0.1 40);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
