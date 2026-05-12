@@ -3,6 +3,7 @@
  */
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { Element, MutationVariant } from "../backend";
 import type { Worm, WormId } from "../backend";
 import { breedWorms } from "../types";
 import { useAddWorm, useDeleteWorm, useGetWorms } from "./useQueries";
@@ -14,6 +15,7 @@ export function useWormGame() {
 
   const [selectedIds, setSelectedIds] = useState<WormId[]>([]);
   const [isBreeding, setIsBreeding] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const toggleSelect = useCallback((id: WormId) => {
     setSelectedIds((prev) => {
@@ -84,6 +86,57 @@ export function useWormGame() {
     }
   }, [worms, addWormMut]);
 
+  /** Selective breed: keep one locked part exactly, breed the other 2 */
+  const breedSelective = useCallback(
+    async (worm: Worm, lockedPart: "head" | "body" | "tail") => {
+      if (worms.length >= 20) {
+        toast.error("Tổ đã đầy! Hãy xóa bớt sâu để lai giữ bộ phận.");
+        return;
+      }
+      // Pick a second parent: random OTHER worm, or self if solo
+      const others = worms.filter((w) => w.id !== worm.id);
+      const p2 =
+        others.length > 0
+          ? others[Math.floor(Math.random() * others.length)]
+          : worm;
+
+      const bred = breedWorms(
+        worm.element,
+        worm.head,
+        worm.body,
+        worm.tail,
+        p2.element,
+        p2.head,
+        p2.body,
+        p2.tail,
+      );
+
+      // Force-override the locked part with the original worm's part
+      const child = {
+        ...bred,
+        [lockedPart]: { ...worm[lockedPart] },
+      };
+
+      setIsBreeding(true);
+      try {
+        await addWormMut.mutateAsync(child);
+        const partNames: Record<string, string> = {
+          head: "Đầu",
+          body: "Thân",
+          tail: "Đuôi",
+        };
+        toast.success(
+          `🧬 Lai thành công! ${partNames[lockedPart]} được giữ lại!`,
+        );
+      } catch {
+        toast.error("Lai giữ bộ phận thất bại, thử lại nhé!");
+      } finally {
+        setIsBreeding(false);
+      }
+    },
+    [worms, addWormMut],
+  );
+
   const deleteWorm = useCallback(
     async (id: WormId) => {
       try {
@@ -97,6 +150,30 @@ export function useWormGame() {
     [deleteWormMut],
   );
 
+  /** Reset: delete all worms then add 1 starter grass worm */
+  const resetGame = useCallback(async () => {
+    setIsResetting(true);
+    setSelectedIds([]);
+    try {
+      // Delete all current worms sequentially
+      for (const w of worms) {
+        await deleteWormMut.mutateAsync(w.id);
+      }
+      // Add 1 starter grass worm
+      await addWormMut.mutateAsync({
+        element: Element.Grass,
+        head: { element: Element.Grass, mutation: MutationVariant.Solid },
+        body: { element: Element.Grass, mutation: MutationVariant.Solid },
+        tail: { element: Element.Grass, mutation: MutationVariant.Solid },
+      });
+      toast.success("🌱 Đã bắt đầu lại! Chào mừng con Sâu Cỏ mới!");
+    } catch {
+      toast.error("Bắt đầu lại thất bại, thử lại nhé!");
+    } finally {
+      setIsResetting(false);
+    }
+  }, [worms, addWormMut, deleteWormMut]);
+
   return {
     worms,
     isLoading,
@@ -105,7 +182,10 @@ export function useWormGame() {
     clearSelection,
     breed,
     breedSelf,
+    breedSelective,
     deleteWorm,
     isBreeding,
+    resetGame,
+    isResetting,
   };
 }

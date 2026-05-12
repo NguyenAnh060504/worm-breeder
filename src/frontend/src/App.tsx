@@ -5,7 +5,13 @@ import { useState } from "react";
 import type { Worm } from "./backend";
 import { Element } from "./backend";
 import { useWormGame } from "./hooks/useBackend";
-import { ELEMENT_META, MAX_WORMS, MUTATION_META, PART_LABELS } from "./types";
+import {
+  ELEMENT_META,
+  MAX_WORMS,
+  MUTATION_META,
+  PART_LABELS,
+  getWormName,
+} from "./types";
 
 const queryClient = new QueryClient();
 
@@ -23,146 +29,254 @@ interface WormPartProps {
   mutation: string;
   partName: string;
   size?: number;
+  showTooltip?: boolean;
+  isLockable?: boolean;
+  isLocked?: boolean;
+  onClick?: () => void;
 }
 
-function WormPart({ element, mutation, partName, size = 36 }: WormPartProps) {
+function WormPart({
+  element,
+  mutation,
+  partName,
+  size = 36,
+  showTooltip,
+  isLockable,
+  isLocked,
+  onClick,
+}: WormPartProps) {
+  const [hovered, setHovered] = useState(false);
   const [c1, c2] = ELEMENT_COLORS[element];
   const isHead = partName === "head";
   const isTail = partName === "tail";
 
+  // HEAD: 32×32, BODY/TAIL: 64×32
+  const vbW = isHead ? 32 : 64;
+  const vbH = 32;
+  const svgW = isHead ? size : size * 2;
+  const svgH = size;
+
+  const patId = `p-${element}-${partName}`;
+  const clipId = `clip-${element}-${partName}`;
+
+  // TAIL: triangle — base at x=0 full height, point at (64,16)
+  const tailPath = "M 0 0 L 64 16 L 0 32 Z";
+
   const getFill = () => {
-    if (mutation === "Gradient") return `url(#grad-${element}-${partName})`;
-    if (mutation === "Striped") return `url(#stripe-${element}-${partName})`;
-    if (mutation === "Spotted") return c1;
-    if (mutation === "Metallic") return `url(#metal-${element}-${partName})`;
+    if (mutation === "Gradient") return `url(#${patId})`;
+    if (mutation === "Striped") return `url(#${patId})`;
+    if (mutation === "Metallic") return `url(#${patId})`;
     return c1;
   };
 
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 40 40"
-      xmlns="http://www.w3.org/2000/svg"
-      role="img"
-      aria-label={partName}
-    >
-      <defs>
-        <radialGradient id={`grad-${element}-${partName}`} cx="40%" cy="40%">
-          <stop offset="0%" stopColor={c2} />
-          <stop offset="100%" stopColor={c1} />
-        </radialGradient>
-        <pattern
-          id={`stripe-${element}-${partName}`}
-          patternUnits="userSpaceOnUse"
-          width="6"
-          height="6"
-        >
-          <rect width="6" height="6" fill={c2} />
-          <path d="M0 6L6 0M-1 1L1-1M5 7L7 5" stroke={c1} strokeWidth="2" />
-        </pattern>
-        <linearGradient
-          id={`metal-${element}-${partName}`}
-          x1="0"
-          y1="0"
-          x2="1"
-          y2="1"
-        >
-          <stop offset="0%" stopColor="#fff" stopOpacity="0.7" />
-          <stop offset="40%" stopColor={c1} />
-          <stop offset="100%" stopColor={c2} />
-        </linearGradient>
-      </defs>
+  const partLabel = PART_LABELS[partName as "head" | "body" | "tail"];
+  const elemMeta = ELEMENT_META[element];
 
-      {isHead ? (
-        <>
-          <ellipse
-            cx="20"
-            cy="22"
-            rx="15"
-            ry="14"
-            fill={getFill()}
-            stroke="rgba(0,0,0,0.15)"
-            strokeWidth="1.5"
-          />
-          {/* eyes */}
-          <circle cx="14" cy="18" r="3.5" fill="white" />
-          <circle cx="26" cy="18" r="3.5" fill="white" />
-          <circle cx="15" cy="18" r="2" fill="#222" />
-          <circle cx="27" cy="18" r="2" fill="#222" />
-          <circle cx="15.5" cy="17" r="0.8" fill="white" />
-          <circle cx="27.5" cy="17" r="0.8" fill="white" />
-          {/* smile */}
-          <path
-            d="M14 25 Q20 30 26 25"
-            stroke="#222"
-            strokeWidth="1.5"
-            fill="none"
-            strokeLinecap="round"
-          />
-          {mutation === "Spotted" && (
-            <>
-              <circle cx="10" cy="25" r="2" fill={c2} opacity="0.7" />
-              <circle cx="30" cy="23" r="2" fill={c2} opacity="0.7" />
-            </>
-          )}
-        </>
-      ) : isTail ? (
-        <>
-          <ellipse
-            cx="20"
-            cy="22"
-            rx="10"
-            ry="13"
-            fill={getFill()}
-            stroke="rgba(0,0,0,0.15)"
-            strokeWidth="1.5"
-          />
-          <ellipse
-            cx="20"
-            cy="33"
-            rx="5"
-            ry="6"
-            fill={getFill()}
-            stroke="rgba(0,0,0,0.12)"
-            strokeWidth="1"
-          />
-          {mutation === "Spotted" && (
-            <circle cx="20" cy="20" r="2.5" fill={c2} opacity="0.7" />
-          )}
-        </>
-      ) : (
-        <>
-          <rect
-            x="6"
-            y="8"
-            width="28"
-            height="24"
-            rx="10"
-            fill={getFill()}
-            stroke="rgba(0,0,0,0.15)"
-            strokeWidth="1.5"
-          />
-          {mutation === "Spotted" && (
-            <>
-              <circle cx="13" cy="18" r="3" fill={c2} opacity="0.6" />
-              <circle cx="27" cy="22" r="2.5" fill={c2} opacity="0.6" />
-            </>
+  const WrapEl = isLockable ? "button" : "span";
+
+  return (
+    <WrapEl
+      {...(isLockable ? { type: "button" as const } : {})}
+      className={`relative inline-flex ${isLockable ? "cursor-pointer" : ""}`}
+      style={{ display: "inline-block" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+    >
+      {/* Lock indicator border */}
+      {isLockable && (
+        <div
+          className={`absolute inset-0 rounded-lg border-2 transition-all pointer-events-none z-10 ${
+            isLocked
+              ? "border-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.7)]"
+              : "border-dashed border-muted-foreground/40 hover:border-cyan-300"
+          }`}
+          style={{ margin: "-2px" }}
+        />
+      )}
+      {isLocked && (
+        <span
+          className="absolute -top-2 -right-1 text-[10px] z-20 select-none leading-none"
+          style={{ pointerEvents: "none" }}
+        >
+          🔒
+        </span>
+      )}
+
+      {/* Tooltip */}
+      {(showTooltip || isLockable) && hovered && (
+        <div
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none"
+          style={{ whiteSpace: "nowrap" }}
+        >
+          <div className="bg-foreground text-background text-[10px] font-semibold rounded-md px-2 py-1 shadow-lg flex items-center gap-1 animate-in fade-in duration-150">
+            <span>{partLabel}</span>
+            <span className="opacity-50">·</span>
+            <span>{elemMeta.emoji}</span>
+            <span>{elemMeta.name}</span>
+            {isLockable && (
+              <span className="opacity-60 ml-1">
+                {isLocked ? "🔒 đã giữ" : "click để giữ"}
+              </span>
+            )}
+          </div>
+          {/* Arrow */}
+          <div className="w-2 h-2 bg-foreground rotate-45 mx-auto -mt-1" />
+        </div>
+      )}
+
+      <svg
+        width={svgW}
+        height={svgH}
+        viewBox={`0 0 ${vbW} ${vbH}`}
+        xmlns="http://www.w3.org/2000/svg"
+        role="img"
+        aria-label={partName}
+        style={{ display: "block" }}
+      >
+        <defs>
+          {mutation === "Gradient" && (
+            <linearGradient id={patId} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor={c2} />
+              <stop offset="100%" stopColor={c1} />
+            </linearGradient>
           )}
           {mutation === "Striped" && (
-            <line
-              x1="6"
-              y1="18"
-              x2="34"
-              y2="18"
-              stroke={c2}
-              strokeWidth="3"
-              opacity="0.5"
-            />
+            <pattern
+              id={patId}
+              patternUnits="userSpaceOnUse"
+              width="8"
+              height="8"
+              patternTransform="rotate(45)"
+            >
+              <rect width="8" height="8" fill={c1} />
+              <rect x="0" y="0" width="4" height="8" fill={c2} opacity="0.7" />
+            </pattern>
           )}
-        </>
-      )}
-    </svg>
+          {mutation === "Metallic" && (
+            <linearGradient id={patId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fff" stopOpacity="0.55" />
+              <stop offset="35%" stopColor={c1} />
+              <stop offset="70%" stopColor={c2} />
+              <stop offset="100%" stopColor={c1} stopOpacity="0.8" />
+            </linearGradient>
+          )}
+
+          {/* ClipPath for each shape */}
+          {isHead && (
+            <clipPath id={clipId}>
+              {/* D-shape: flat right at x=32, arc bulging left, radius=16, center=(32,16) */}
+              <path d="M 32 0 L 32 32 A 16 16 0 0 1 0 16 Z" />
+            </clipPath>
+          )}
+          {!isHead && !isTail && (
+            <clipPath id={clipId}>
+              <rect x="0" y="0" width="64" height="32" />
+            </clipPath>
+          )}
+          {isTail && (
+            <clipPath id={clipId}>
+              <path d="M 0 0 L 64 16 L 0 32 Z" />
+            </clipPath>
+          )}
+        </defs>
+
+        {/* Base fill shape */}
+        {isHead && (
+          <path
+            d="M 32 0 L 32 32 A 16 16 0 0 1 0 16 Z"
+            fill={getFill()}
+            stroke="rgba(0,0,0,0.18)"
+            strokeWidth="1.2"
+          />
+        )}
+        {!isHead && !isTail && (
+          <rect
+            x="0"
+            y="0"
+            width="64"
+            height="32"
+            fill={getFill()}
+            stroke="rgba(0,0,0,0.18)"
+            strokeWidth="1.2"
+          />
+        )}
+        {isTail && (
+          <path
+            d={tailPath}
+            fill={getFill()}
+            stroke="rgba(0,0,0,0.18)"
+            strokeWidth="1.2"
+          />
+        )}
+
+        {/* Spotted mutation overlay */}
+        {mutation === "Spotted" && (
+          <g clipPath={`url(#${clipId})`}>
+            {isHead && (
+              <path d="M 32 0 L 32 32 A 16 16 0 0 1 0 16 Z" fill={c1} />
+            )}
+            {!isHead && !isTail && (
+              <rect x="0" y="0" width="64" height="32" fill={c1} />
+            )}
+            {isTail && <path d="M 0 0 L 64 16 L 0 32 Z" fill={c1} />}
+            <circle
+              cx={vbW * 0.3}
+              cy={vbH / 2 - 2}
+              r="3.5"
+              fill={c2}
+              opacity="0.65"
+            />
+            <circle
+              cx={vbW * 0.55}
+              cy={vbH / 2 + 3}
+              r="2.5"
+              fill={c2}
+              opacity="0.6"
+            />
+            {!isHead && (
+              <circle
+                cx={vbW * 0.78}
+                cy={vbH / 2 - 1}
+                r="2"
+                fill={c2}
+                opacity="0.5"
+              />
+            )}
+          </g>
+        )}
+
+        {/* Gloss highlight */}
+        <rect
+          x={isHead ? 4 : 2}
+          y="3"
+          width={isHead ? 18 : vbW - 6}
+          height="9"
+          rx="2"
+          fill="white"
+          opacity="0.18"
+          clipPath={`url(#${clipId})`}
+        />
+
+        {/* HEAD: eye + half-mouth */}
+        {isHead && (
+          <>
+            {/* Eye */}
+            <circle cx="10" cy="10" r="3.2" fill="white" />
+            <circle cx="10.5" cy="10" r="2" fill="#1a1a1a" />
+            <circle cx="9.5" cy="9.2" r="0.7" fill="white" />
+            {/* Half-mouth arc on lower-left */}
+            <path
+              d="M 5 20 Q 10 24 15 20"
+              stroke="#1a1a1a"
+              strokeWidth="1.2"
+              fill="none"
+              strokeLinecap="round"
+            />
+          </>
+        )}
+      </svg>
+    </WrapEl>
   );
 }
 
@@ -174,6 +288,8 @@ interface WormCardProps {
   isSelected: boolean;
   onSelect: (id: bigint) => void;
   onDelete: (id: bigint) => void;
+  onBreedSelective: (worm: Worm, lockedPart: "head" | "body" | "tail") => void;
+  atMax: boolean;
 }
 
 function WormCard({
@@ -182,26 +298,57 @@ function WormCard({
   isSelected,
   onSelect,
   onDelete,
+  onBreedSelective,
+  atMax,
 }: WormCardProps) {
   const meta = ELEMENT_META[worm.element];
   const [showDelete, setShowDelete] = useState(false);
+  const [selectiveMode, setSelectiveMode] = useState(false);
+  const [lockedPart, setLockedPart] = useState<"head" | "body" | "tail" | null>(
+    null,
+  );
+  const wormName = getWormName(worm);
+
+  const handleLockPart = (part: "head" | "body" | "tail") => {
+    if (lockedPart === part) {
+      // Already locked → breed now
+      onBreedSelective(worm, part);
+      setSelectiveMode(false);
+      setLockedPart(null);
+    } else {
+      setLockedPart(part);
+    }
+  };
+
+  const handleBreedWithLock = () => {
+    if (!lockedPart) return;
+    onBreedSelective(worm, lockedPart);
+    setSelectiveMode(false);
+    setLockedPart(null);
+  };
+
+  const cancelSelective = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectiveMode(false);
+    setLockedPart(null);
+  };
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.8, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.7, y: -10 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
       className={`worm-card relative p-3 flex flex-col items-center gap-2 border-2 select-none
         ${isSelected ? "selected" : ""} ${meta.bgClass} ${meta.borderClass}`}
-      onClick={() => onSelect(worm.id)}
+      onClick={() => !selectiveMode && onSelect(worm.id)}
       onMouseEnter={() => setShowDelete(true)}
       onMouseLeave={() => setShowDelete(false)}
       data-ocid={`worm.item.${index + 1}`}
     >
       {/* Selected check */}
-      {isSelected && (
+      {isSelected && !selectiveMode && (
         <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-md z-10">
           <span className="text-primary-foreground text-xs font-bold">✓</span>
         </div>
@@ -209,7 +356,7 @@ function WormCard({
 
       {/* Delete button */}
       <AnimatePresence>
-        {showDelete && (
+        {showDelete && !selectiveMode && (
           <motion.button
             type="button"
             initial={{ opacity: 0, scale: 0.6 }}
@@ -228,29 +375,38 @@ function WormCard({
         )}
       </AnimatePresence>
 
-      {/* Element badge */}
+      {/* Worm name */}
       <div
         className={`text-xs font-bold px-2 py-0.5 rounded-full ${meta.borderClass} border ${meta.textClass} bg-card/80`}
       >
-        {meta.emoji} {meta.name}
+        {meta.emoji} {wormName}
       </div>
 
-      {/* Body parts row */}
-      <div className="flex items-center gap-1.5">
-        {(["head", "body", "tail"] as const).map((part) => (
-          <div key={part} className="flex flex-col items-center gap-0.5">
-            <div className="body-part w-10 h-10 p-0.5">
-              <WormPart
-                element={worm[part].element}
-                mutation={worm[part].mutation}
-                partName={part}
-                size={32}
-              />
-            </div>
-            <span className="text-[9px] font-semibold text-muted-foreground">
-              {PART_LABELS[part]}
-            </span>
-          </div>
+      {/* Body parts — with tooltips or lock mode */}
+      <div className="flex items-center" style={{ gap: 0 }}>
+        {[
+          { key: "head" as const, pn: "head" },
+          { key: "body" as const, pn: "body" },
+          { key: "tail" as const, pn: "tail" },
+        ].map(({ key, pn }) => (
+          <WormPart
+            key={key}
+            element={worm[key].element}
+            mutation={String(worm[key].mutation)}
+            partName={pn}
+            size={22}
+            showTooltip={!selectiveMode}
+            isLockable={selectiveMode}
+            isLocked={lockedPart === key}
+            onClick={
+              selectiveMode
+                ? (e?: unknown) => {
+                    (e as React.MouseEvent)?.stopPropagation?.();
+                    handleLockPart(key);
+                  }
+                : undefined
+            }
+          />
         ))}
       </div>
 
@@ -262,12 +418,79 @@ function WormCard({
             <span
               key={part}
               className="text-[10px] bg-card/70 border border-border rounded-full px-1.5 py-0.5 font-medium"
+              title={PART_LABELS[part]}
             >
               {mm.emoji}
             </span>
           );
         })}
       </div>
+
+      {/* Selective breeding UI */}
+      <AnimatePresence>
+        {selectiveMode && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            className="w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-[10px] text-center text-muted-foreground mb-1.5 font-semibold">
+              {lockedPart
+                ? `🔒 ${PART_LABELS[lockedPart]} đã chọn — Ấn 🧬 để lai`
+                : "Chọn bộ phận muốn giữ lại"}
+            </p>
+            <div className="flex gap-1.5 justify-center">
+              {lockedPart && (
+                <button
+                  type="button"
+                  onClick={handleBreedWithLock}
+                  disabled={atMax}
+                  className="flex-1 text-[10px] font-bold py-1 px-2 rounded-full bg-cyan-500 hover:bg-cyan-400 text-white transition-colors shadow disabled:opacity-50"
+                  data-ocid={`worm.selective_breed_button.${index + 1}`}
+                >
+                  🧬 Lai!
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={cancelSelective}
+                className="flex-1 text-[10px] font-semibold py-1 px-2 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground transition-colors border border-border"
+                data-ocid={`worm.selective_cancel_button.${index + 1}`}
+              >
+                Hủy
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Lai Giữ button — shown on hover when NOT in selective mode */}
+      <AnimatePresence>
+        {showDelete && !selectiveMode && (
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            className="w-full text-[10px] font-bold py-1 px-2 rounded-full bg-cyan-600/90 hover:bg-cyan-500 text-white transition-all shadow-sm border border-cyan-400/40"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (atMax) {
+                return;
+              }
+              setSelectiveMode(true);
+              setLockedPart(null);
+            }}
+            disabled={atMax}
+            title={atMax ? "Tổ đầy rồi!" : "Lai giữ 1 bộ phận"}
+            data-ocid={`worm.selective_mode_button.${index + 1}`}
+          >
+            🧬 Lai Giữ
+          </motion.button>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -275,20 +498,22 @@ function WormCard({
 function ParentSlot({ worm, slot }: { worm: Worm | undefined; slot: string }) {
   if (worm) {
     const meta = ELEMENT_META[worm.element];
+    const name = getWormName(worm);
     return (
       <div
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 ${meta.bgClass} ${meta.borderClass}`}
       >
+        {/* Mini cylinder head preview */}
         <WormPart
           element={worm.head.element}
-          mutation={worm.head.mutation}
+          mutation={String(worm.head.mutation)}
           partName="head"
-          size={24}
+          size={20}
         />
         <span
           className={`text-xs font-bold ${meta.textClass} truncate max-w-[70px]`}
         >
-          {meta.name}
+          {name}
         </span>
       </div>
     );
@@ -418,8 +643,11 @@ function AppInner() {
     clearSelection,
     breed,
     breedSelf,
+    breedSelective,
     deleteWorm,
     isBreeding,
+    resetGame,
+    isResetting,
   } = useWormGame();
   const wormCount = worms.length;
   const atMax = wormCount >= MAX_WORMS;
@@ -448,6 +676,17 @@ function AppInner() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Reset button */}
+            <button
+              type="button"
+              onClick={resetGame}
+              disabled={isResetting}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-full border-2 border-destructive/60 bg-destructive/10 text-destructive text-xs font-bold hover:bg-destructive/20 transition-colors disabled:opacity-50"
+              title="Xóa tất cả và bắt đầu lại với 1 con Sâu Cỏ"
+              data-ocid="worm.reset_button"
+            >
+              {isResetting ? "⏳" : "🔄"} Bắt đầu lại
+            </button>
             {/* Worm count */}
             <div
               className={`rounded-2xl px-4 py-2 border-2 text-center ${
@@ -546,9 +785,18 @@ function AppInner() {
               <h2 className="font-display text-2xl font-extrabold text-foreground mb-2">
                 🐣 Tổ còn trống!
               </h2>
-              <p className="text-muted-foreground font-body">
-                App đang kết nối với tổ sâu...
+              <p className="text-muted-foreground font-body mb-4">
+                Tổ sâu trống! Ấn nút bên dưới để bắt đầu.
               </p>
+              <button
+                type="button"
+                onClick={resetGame}
+                disabled={isResetting}
+                className="flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors shadow-md disabled:opacity-50 mx-auto"
+                data-ocid="worm.empty_reset_button"
+              >
+                {isResetting ? "⏳ Đang tạo..." : "🌱 Bắt đầu lại"}
+              </button>
             </div>
           </motion.div>
         ) : (
@@ -571,6 +819,8 @@ function AppInner() {
                     isSelected={selectedIds.some((id) => id === worm.id)}
                     onSelect={toggleSelect}
                     onDelete={deleteWorm}
+                    onBreedSelective={breedSelective}
+                    atMax={atMax}
                   />
                 ))}
               </AnimatePresence>
@@ -582,7 +832,7 @@ function AppInner() {
       {/* Footer */}
       <footer className="bg-card border-t border-border py-3 text-center z-10">
         <p className="text-xs text-foreground/40 font-body">
-          © {new Date().getFullYear()}. Built with ❤ using{" "}
+          © {new Date().getFullYear()}. Built with ❤ using{}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
             target="_blank"

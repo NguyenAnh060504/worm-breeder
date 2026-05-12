@@ -36193,6 +36193,18 @@ function breedWorms(p1Element, p1Head, p1Body, p1Tail, p2Element, p2Head, p2Body
   };
 }
 const MAX_WORMS = 20;
+function getWormName(worm) {
+  if (worm.head.element === worm.body.element && worm.body.element === worm.tail.element) {
+    const names = {
+      [Element$1.Electric]: "Sâu Sét",
+      [Element$1.Earth]: "Sâu Đất",
+      [Element$1.Grass]: "Sâu Cỏ",
+      [Element$1.Water]: "Sâu Nước"
+    };
+    return names[worm.head.element];
+  }
+  return "Sâu Lai";
+}
 function useGetWorms() {
   const { actor, isFetching } = useActor(createActor);
   return useQuery({
@@ -36237,6 +36249,7 @@ function useWormGame() {
   const deleteWormMut = useDeleteWorm();
   const [selectedIds, setSelectedIds] = reactExports.useState([]);
   const [isBreeding, setIsBreeding] = reactExports.useState(false);
+  const [isResetting, setIsResetting] = reactExports.useState(false);
   const toggleSelect = reactExports.useCallback((id2) => {
     setSelectedIds((prev) => {
       if (prev.some((x3) => x3 === id2)) return prev.filter((x3) => x3 !== id2);
@@ -36301,6 +36314,47 @@ function useWormGame() {
       setIsBreeding(false);
     }
   }, [worms, addWormMut]);
+  const breedSelective = reactExports.useCallback(
+    async (worm, lockedPart) => {
+      if (worms.length >= 20) {
+        ue.error("Tổ đã đầy! Hãy xóa bớt sâu để lai giữ bộ phận.");
+        return;
+      }
+      const others = worms.filter((w2) => w2.id !== worm.id);
+      const p2 = others.length > 0 ? others[Math.floor(Math.random() * others.length)] : worm;
+      const bred = breedWorms(
+        worm.element,
+        worm.head,
+        worm.body,
+        worm.tail,
+        p2.element,
+        p2.head,
+        p2.body,
+        p2.tail
+      );
+      const child = {
+        ...bred,
+        [lockedPart]: { ...worm[lockedPart] }
+      };
+      setIsBreeding(true);
+      try {
+        await addWormMut.mutateAsync(child);
+        const partNames = {
+          head: "Đầu",
+          body: "Thân",
+          tail: "Đuôi"
+        };
+        ue.success(
+          `🧬 Lai thành công! ${partNames[lockedPart]} được giữ lại!`
+        );
+      } catch {
+        ue.error("Lai giữ bộ phận thất bại, thử lại nhé!");
+      } finally {
+        setIsBreeding(false);
+      }
+    },
+    [worms, addWormMut]
+  );
   const deleteWorm = reactExports.useCallback(
     async (id2) => {
       try {
@@ -36313,6 +36367,26 @@ function useWormGame() {
     },
     [deleteWormMut]
   );
+  const resetGame = reactExports.useCallback(async () => {
+    setIsResetting(true);
+    setSelectedIds([]);
+    try {
+      for (const w2 of worms) {
+        await deleteWormMut.mutateAsync(w2.id);
+      }
+      await addWormMut.mutateAsync({
+        element: Element$1.Grass,
+        head: { element: Element$1.Grass, mutation: MutationVariant.Solid },
+        body: { element: Element$1.Grass, mutation: MutationVariant.Solid },
+        tail: { element: Element$1.Grass, mutation: MutationVariant.Solid }
+      });
+      ue.success("🌱 Đã bắt đầu lại! Chào mừng con Sâu Cỏ mới!");
+    } catch {
+      ue.error("Bắt đầu lại thất bại, thử lại nhé!");
+    } finally {
+      setIsResetting(false);
+    }
+  }, [worms, addWormMut, deleteWormMut]);
   return {
     worms,
     isLoading,
@@ -36321,8 +36395,11 @@ function useWormGame() {
     clearSelection,
     breed,
     breedSelf,
+    breedSelective,
     deleteWorm,
-    isBreeding
+    isBreeding,
+    resetGame,
+    isResetting
   };
 }
 const queryClient = new QueryClient();
@@ -36332,151 +36409,214 @@ const ELEMENT_COLORS = {
   [Element$1.Grass]: ["#4caf50", "#a5d6a7"],
   [Element$1.Water]: ["#29b6f6", "#b3e5fc"]
 };
-function WormPart({ element, mutation, partName, size = 36 }) {
+function WormPart({
+  element,
+  mutation,
+  partName,
+  size = 36,
+  showTooltip,
+  isLockable,
+  isLocked,
+  onClick
+}) {
+  const [hovered, setHovered] = reactExports.useState(false);
   const [c1, c2] = ELEMENT_COLORS[element];
   const isHead = partName === "head";
   const isTail = partName === "tail";
+  const vbW = isHead ? 32 : 64;
+  const vbH = 32;
+  const svgW = isHead ? size : size * 2;
+  const svgH = size;
+  const patId = `p-${element}-${partName}`;
+  const clipId = `clip-${element}-${partName}`;
+  const tailPath = "M 0 0 L 64 16 L 0 32 Z";
   const getFill = () => {
-    if (mutation === "Gradient") return `url(#grad-${element}-${partName})`;
-    if (mutation === "Striped") return `url(#stripe-${element}-${partName})`;
-    if (mutation === "Spotted") return c1;
-    if (mutation === "Metallic") return `url(#metal-${element}-${partName})`;
+    if (mutation === "Gradient") return `url(#${patId})`;
+    if (mutation === "Striped") return `url(#${patId})`;
+    if (mutation === "Metallic") return `url(#${patId})`;
     return c1;
   };
+  const partLabel = PART_LABELS[partName];
+  const elemMeta = ELEMENT_META[element];
+  const WrapEl = isLockable ? "button" : "span";
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-    "svg",
+    WrapEl,
     {
-      width: size,
-      height: size,
-      viewBox: "0 0 40 40",
-      xmlns: "http://www.w3.org/2000/svg",
-      role: "img",
-      "aria-label": partName,
+      ...isLockable ? { type: "button" } : {},
+      className: `relative inline-flex ${isLockable ? "cursor-pointer" : ""}`,
+      style: { display: "inline-block" },
+      onMouseEnter: () => setHovered(true),
+      onMouseLeave: () => setHovered(false),
+      onClick,
       children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("defs", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("radialGradient", { id: `grad-${element}-${partName}`, cx: "40%", cy: "40%", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "0%", stopColor: c2 }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "100%", stopColor: c1 })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "pattern",
-            {
-              id: `stripe-${element}-${partName}`,
-              patternUnits: "userSpaceOnUse",
-              width: "6",
-              height: "6",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { width: "6", height: "6", fill: c2 }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M0 6L6 0M-1 1L1-1M5 7L7 5", stroke: c1, strokeWidth: "2" })
-              ]
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "linearGradient",
-            {
-              id: `metal-${element}-${partName}`,
-              x1: "0",
-              y1: "0",
-              x2: "1",
-              y2: "1",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "0%", stopColor: "#fff", stopOpacity: "0.7" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "40%", stopColor: c1 }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "100%", stopColor: c2 })
-              ]
-            }
-          )
-        ] }),
-        isHead ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "ellipse",
-            {
-              cx: "20",
-              cy: "22",
-              rx: "15",
-              ry: "14",
-              fill: getFill(),
-              stroke: "rgba(0,0,0,0.15)",
-              strokeWidth: "1.5"
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "14", cy: "18", r: "3.5", fill: "white" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "26", cy: "18", r: "3.5", fill: "white" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "15", cy: "18", r: "2", fill: "#222" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "27", cy: "18", r: "2", fill: "#222" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "15.5", cy: "17", r: "0.8", fill: "white" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "27.5", cy: "17", r: "0.8", fill: "white" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "path",
-            {
-              d: "M14 25 Q20 30 26 25",
-              stroke: "#222",
-              strokeWidth: "1.5",
-              fill: "none",
-              strokeLinecap: "round"
-            }
-          ),
-          mutation === "Spotted" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "10", cy: "25", r: "2", fill: c2, opacity: "0.7" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "30", cy: "23", r: "2", fill: c2, opacity: "0.7" })
-          ] })
-        ] }) : isTail ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "ellipse",
-            {
-              cx: "20",
-              cy: "22",
-              rx: "10",
-              ry: "13",
-              fill: getFill(),
-              stroke: "rgba(0,0,0,0.15)",
-              strokeWidth: "1.5"
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "ellipse",
-            {
-              cx: "20",
-              cy: "33",
-              rx: "5",
-              ry: "6",
-              fill: getFill(),
-              stroke: "rgba(0,0,0,0.12)",
-              strokeWidth: "1"
-            }
-          ),
-          mutation === "Spotted" && /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "20", cy: "20", r: "2.5", fill: c2, opacity: "0.7" })
-        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "rect",
-            {
-              x: "6",
-              y: "8",
-              width: "28",
-              height: "24",
-              rx: "10",
-              fill: getFill(),
-              stroke: "rgba(0,0,0,0.15)",
-              strokeWidth: "1.5"
-            }
-          ),
-          mutation === "Spotted" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "13", cy: "18", r: "3", fill: c2, opacity: "0.6" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "27", cy: "22", r: "2.5", fill: c2, opacity: "0.6" })
-          ] }),
-          mutation === "Striped" && /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "line",
-            {
-              x1: "6",
-              y1: "18",
-              x2: "34",
-              y2: "18",
-              stroke: c2,
-              strokeWidth: "3",
-              opacity: "0.5"
-            }
-          )
-        ] })
+        isLockable && /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "div",
+          {
+            className: `absolute inset-0 rounded-lg border-2 transition-all pointer-events-none z-10 ${isLocked ? "border-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.7)]" : "border-dashed border-muted-foreground/40 hover:border-cyan-300"}`,
+            style: { margin: "-2px" }
+          }
+        ),
+        isLocked && /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "span",
+          {
+            className: "absolute -top-2 -right-1 text-[10px] z-20 select-none leading-none",
+            style: { pointerEvents: "none" },
+            children: "🔒"
+          }
+        ),
+        (showTooltip || isLockable) && hovered && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: "absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none",
+            style: { whiteSpace: "nowrap" },
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-foreground text-background text-[10px] font-semibold rounded-md px-2 py-1 shadow-lg flex items-center gap-1 animate-in fade-in duration-150", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: partLabel }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "opacity-50", children: "·" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: elemMeta.emoji }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: elemMeta.name }),
+                isLockable && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "opacity-60 ml-1", children: isLocked ? "🔒 đã giữ" : "click để giữ" })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-2 h-2 bg-foreground rotate-45 mx-auto -mt-1" })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "svg",
+          {
+            width: svgW,
+            height: svgH,
+            viewBox: `0 0 ${vbW} ${vbH}`,
+            xmlns: "http://www.w3.org/2000/svg",
+            role: "img",
+            "aria-label": partName,
+            style: { display: "block" },
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("defs", { children: [
+                mutation === "Gradient" && /* @__PURE__ */ jsxRuntimeExports.jsxs("linearGradient", { id: patId, x1: "0", y1: "0", x2: "1", y2: "0", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "0%", stopColor: c2 }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "100%", stopColor: c1 })
+                ] }),
+                mutation === "Striped" && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "pattern",
+                  {
+                    id: patId,
+                    patternUnits: "userSpaceOnUse",
+                    width: "8",
+                    height: "8",
+                    patternTransform: "rotate(45)",
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { width: "8", height: "8", fill: c1 }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "0", y: "0", width: "4", height: "8", fill: c2, opacity: "0.7" })
+                    ]
+                  }
+                ),
+                mutation === "Metallic" && /* @__PURE__ */ jsxRuntimeExports.jsxs("linearGradient", { id: patId, x1: "0", y1: "0", x2: "0", y2: "1", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "0%", stopColor: "#fff", stopOpacity: "0.55" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "35%", stopColor: c1 }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "70%", stopColor: c2 }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "100%", stopColor: c1, stopOpacity: "0.8" })
+                ] }),
+                isHead && /* @__PURE__ */ jsxRuntimeExports.jsx("clipPath", { id: clipId, children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M 32 0 L 32 32 A 16 16 0 0 1 0 16 Z" }) }),
+                !isHead && !isTail && /* @__PURE__ */ jsxRuntimeExports.jsx("clipPath", { id: clipId, children: /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "0", y: "0", width: "64", height: "32" }) }),
+                isTail && /* @__PURE__ */ jsxRuntimeExports.jsx("clipPath", { id: clipId, children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M 0 0 L 64 16 L 0 32 Z" }) })
+              ] }),
+              isHead && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "path",
+                {
+                  d: "M 32 0 L 32 32 A 16 16 0 0 1 0 16 Z",
+                  fill: getFill(),
+                  stroke: "rgba(0,0,0,0.18)",
+                  strokeWidth: "1.2"
+                }
+              ),
+              !isHead && !isTail && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "rect",
+                {
+                  x: "0",
+                  y: "0",
+                  width: "64",
+                  height: "32",
+                  fill: getFill(),
+                  stroke: "rgba(0,0,0,0.18)",
+                  strokeWidth: "1.2"
+                }
+              ),
+              isTail && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "path",
+                {
+                  d: tailPath,
+                  fill: getFill(),
+                  stroke: "rgba(0,0,0,0.18)",
+                  strokeWidth: "1.2"
+                }
+              ),
+              mutation === "Spotted" && /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { clipPath: `url(#${clipId})`, children: [
+                isHead && /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M 32 0 L 32 32 A 16 16 0 0 1 0 16 Z", fill: c1 }),
+                !isHead && !isTail && /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "0", y: "0", width: "64", height: "32", fill: c1 }),
+                isTail && /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M 0 0 L 64 16 L 0 32 Z", fill: c1 }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "circle",
+                  {
+                    cx: vbW * 0.3,
+                    cy: vbH / 2 - 2,
+                    r: "3.5",
+                    fill: c2,
+                    opacity: "0.65"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "circle",
+                  {
+                    cx: vbW * 0.55,
+                    cy: vbH / 2 + 3,
+                    r: "2.5",
+                    fill: c2,
+                    opacity: "0.6"
+                  }
+                ),
+                !isHead && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "circle",
+                  {
+                    cx: vbW * 0.78,
+                    cy: vbH / 2 - 1,
+                    r: "2",
+                    fill: c2,
+                    opacity: "0.5"
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "rect",
+                {
+                  x: isHead ? 4 : 2,
+                  y: "3",
+                  width: isHead ? 18 : vbW - 6,
+                  height: "9",
+                  rx: "2",
+                  fill: "white",
+                  opacity: "0.18",
+                  clipPath: `url(#${clipId})`
+                }
+              ),
+              isHead && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "10", cy: "10", r: "3.2", fill: "white" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "10.5", cy: "10", r: "2", fill: "#1a1a1a" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "9.5", cy: "9.2", r: "0.7", fill: "white" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "path",
+                  {
+                    d: "M 5 20 Q 10 24 15 20",
+                    stroke: "#1a1a1a",
+                    strokeWidth: "1.2",
+                    fill: "none",
+                    strokeLinecap: "round"
+                  }
+                )
+              ] })
+            ]
+          }
+        )
       ]
     }
   );
@@ -36486,27 +36626,54 @@ function WormCard({
   index: index2,
   isSelected,
   onSelect,
-  onDelete
+  onDelete,
+  onBreedSelective,
+  atMax
 }) {
   const meta = ELEMENT_META[worm.element];
   const [showDelete, setShowDelete] = reactExports.useState(false);
+  const [selectiveMode, setSelectiveMode] = reactExports.useState(false);
+  const [lockedPart, setLockedPart] = reactExports.useState(
+    null
+  );
+  const wormName = getWormName(worm);
+  const handleLockPart = (part) => {
+    if (lockedPart === part) {
+      onBreedSelective(worm, part);
+      setSelectiveMode(false);
+      setLockedPart(null);
+    } else {
+      setLockedPart(part);
+    }
+  };
+  const handleBreedWithLock = () => {
+    if (!lockedPart) return;
+    onBreedSelective(worm, lockedPart);
+    setSelectiveMode(false);
+    setLockedPart(null);
+  };
+  const cancelSelective = (e) => {
+    e.stopPropagation();
+    setSelectiveMode(false);
+    setLockedPart(null);
+  };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     motion.div,
     {
       layout: true,
-      initial: { opacity: 0, scale: 0.8, y: 20 },
-      animate: { opacity: 1, scale: 1, y: 0 },
-      exit: { opacity: 0, scale: 0.7, y: -10 },
+      initial: { opacity: 0, y: 20 },
+      animate: { opacity: 1, y: 0 },
+      exit: { opacity: 0, y: -10 },
       transition: { duration: 0.3, delay: index2 * 0.05 },
       className: `worm-card relative p-3 flex flex-col items-center gap-2 border-2 select-none
         ${isSelected ? "selected" : ""} ${meta.bgClass} ${meta.borderClass}`,
-      onClick: () => onSelect(worm.id),
+      onClick: () => !selectiveMode && onSelect(worm.id),
       onMouseEnter: () => setShowDelete(true),
       onMouseLeave: () => setShowDelete(false),
       "data-ocid": `worm.item.${index2 + 1}`,
       children: [
-        isSelected && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-md z-10", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-primary-foreground text-xs font-bold", children: "✓" }) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { children: showDelete && /* @__PURE__ */ jsxRuntimeExports.jsx(
+        isSelected && !selectiveMode && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-md z-10", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-primary-foreground text-xs font-bold", children: "✓" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { children: showDelete && !selectiveMode && /* @__PURE__ */ jsxRuntimeExports.jsx(
           motion.button,
           {
             type: "button",
@@ -36530,33 +36697,102 @@ function WormCard({
             children: [
               meta.emoji,
               " ",
-              meta.name
+              wormName
             ]
           }
         ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-1.5", children: ["head", "body", "tail"].map((part) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center gap-0.5", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "body-part w-10 h-10 p-0.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-            WormPart,
-            {
-              element: worm[part].element,
-              mutation: worm[part].mutation,
-              partName: part,
-              size: 32
-            }
-          ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[9px] font-semibold text-muted-foreground", children: PART_LABELS[part] })
-        ] }, part)) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center", style: { gap: 0 }, children: [
+          { key: "head", pn: "head" },
+          { key: "body", pn: "body" },
+          { key: "tail", pn: "tail" }
+        ].map(({ key, pn }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+          WormPart,
+          {
+            element: worm[key].element,
+            mutation: String(worm[key].mutation),
+            partName: pn,
+            size: 22,
+            showTooltip: !selectiveMode,
+            isLockable: selectiveMode,
+            isLocked: lockedPart === key,
+            onClick: selectiveMode ? (e) => {
+              var _a3;
+              (_a3 = e == null ? void 0 : e.stopPropagation) == null ? void 0 : _a3.call(e);
+              handleLockPart(key);
+            } : void 0
+          },
+          key
+        )) }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-1", children: ["head", "body", "tail"].map((part) => {
           const mm = MUTATION_META[worm[part].mutation];
           return /* @__PURE__ */ jsxRuntimeExports.jsx(
             "span",
             {
               className: "text-[10px] bg-card/70 border border-border rounded-full px-1.5 py-0.5 font-medium",
+              title: PART_LABELS[part],
               children: mm.emoji
             },
             part
           );
-        }) })
+        }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { children: selectiveMode && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          motion.div,
+          {
+            initial: { opacity: 0, y: 6 },
+            animate: { opacity: 1, y: 0 },
+            exit: { opacity: 0, y: 6 },
+            className: "w-full",
+            onClick: (e) => e.stopPropagation(),
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[10px] text-center text-muted-foreground mb-1.5 font-semibold", children: lockedPart ? `🔒 ${PART_LABELS[lockedPart]} đã chọn — Ấn 🧬 để lai` : "Chọn bộ phận muốn giữ lại" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1.5 justify-center", children: [
+                lockedPart && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: handleBreedWithLock,
+                    disabled: atMax,
+                    className: "flex-1 text-[10px] font-bold py-1 px-2 rounded-full bg-cyan-500 hover:bg-cyan-400 text-white transition-colors shadow disabled:opacity-50",
+                    "data-ocid": `worm.selective_breed_button.${index2 + 1}`,
+                    children: "🧬 Lai!"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: cancelSelective,
+                    className: "flex-1 text-[10px] font-semibold py-1 px-2 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground transition-colors border border-border",
+                    "data-ocid": `worm.selective_cancel_button.${index2 + 1}`,
+                    children: "Hủy"
+                  }
+                )
+              ] })
+            ]
+          }
+        ) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { children: showDelete && !selectiveMode && /* @__PURE__ */ jsxRuntimeExports.jsx(
+          motion.button,
+          {
+            type: "button",
+            initial: { opacity: 0, y: 4 },
+            animate: { opacity: 1, y: 0 },
+            exit: { opacity: 0, y: 4 },
+            className: "w-full text-[10px] font-bold py-1 px-2 rounded-full bg-cyan-600/90 hover:bg-cyan-500 text-white transition-all shadow-sm border border-cyan-400/40",
+            onClick: (e) => {
+              e.stopPropagation();
+              if (atMax) {
+                return;
+              }
+              setSelectiveMode(true);
+              setLockedPart(null);
+            },
+            disabled: atMax,
+            title: atMax ? "Tổ đầy rồi!" : "Lai giữ 1 bộ phận",
+            "data-ocid": `worm.selective_mode_button.${index2 + 1}`,
+            children: "🧬 Lai Giữ"
+          }
+        ) })
       ]
     }
   );
@@ -36564,6 +36800,7 @@ function WormCard({
 function ParentSlot({ worm, slot }) {
   if (worm) {
     const meta = ELEMENT_META[worm.element];
+    const name = getWormName(worm);
     return /* @__PURE__ */ jsxRuntimeExports.jsxs(
       "div",
       {
@@ -36573,16 +36810,16 @@ function ParentSlot({ worm, slot }) {
             WormPart,
             {
               element: worm.head.element,
-              mutation: worm.head.mutation,
+              mutation: String(worm.head.mutation),
               partName: "head",
-              size: 24
+              size: 20
             }
           ),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "span",
             {
               className: `text-xs font-bold ${meta.textClass} truncate max-w-[70px]`,
-              children: meta.name
+              children: name
             }
           )
         ]
@@ -36671,8 +36908,11 @@ function AppInner() {
     clearSelection,
     breed,
     breedSelf,
+    breedSelective,
     deleteWorm,
-    isBreeding
+    isBreeding,
+    resetGame,
+    isResetting
   } = useWormGame();
   const wormCount = worms.length;
   const atMax = wormCount >= MAX_WORMS;
@@ -36690,6 +36930,21 @@ function AppInner() {
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              type: "button",
+              onClick: resetGame,
+              disabled: isResetting,
+              className: "flex items-center gap-1.5 px-3 py-2 rounded-full border-2 border-destructive/60 bg-destructive/10 text-destructive text-xs font-bold hover:bg-destructive/20 transition-colors disabled:opacity-50",
+              title: "Xóa tất cả và bắt đầu lại với 1 con Sâu Cỏ",
+              "data-ocid": "worm.reset_button",
+              children: [
+                isResetting ? "⏳" : "🔄",
+                " Bắt đầu lại"
+              ]
+            }
+          ),
           /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "div",
             {
@@ -36784,7 +37039,18 @@ function AppInner() {
           ),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-display text-2xl font-extrabold text-foreground mb-2", children: "🐣 Tổ còn trống!" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-muted-foreground font-body", children: "App đang kết nối với tổ sâu..." })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-muted-foreground font-body mb-4", children: "Tổ sâu trống! Ấn nút bên dưới để bắt đầu." }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                type: "button",
+                onClick: resetGame,
+                disabled: isResetting,
+                className: "flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors shadow-md disabled:opacity-50 mx-auto",
+                "data-ocid": "worm.empty_reset_button",
+                children: isResetting ? "⏳ Đang tạo..." : "🌱 Bắt đầu lại"
+              }
+            )
           ] })
         ]
       }
@@ -36802,7 +37068,9 @@ function AppInner() {
               index: idx,
               isSelected: selectedIds.some((id2) => id2 === worm.id),
               onSelect: toggleSelect,
-              onDelete: deleteWorm
+              onDelete: deleteWorm,
+              onBreedSelective: breedSelective,
+              atMax
             },
             String(worm.id)
           )) })
@@ -36813,7 +37081,6 @@ function AppInner() {
       "© ",
       (/* @__PURE__ */ new Date()).getFullYear(),
       ". Built with ❤ using",
-      " ",
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         "a",
         {

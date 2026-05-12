@@ -22,9 +22,9 @@ module {
     { id; element = newWorm.element; head = newWorm.head; body = newWorm.body; tail = newWorm.tail };
   };
 
-  /// Default starter worm (Electric element, all Solid parts)
+  /// Default starter worm (Grass element, all Solid parts)
   public func starterWorm(id : WormId) : Worm {
-    let electricSolid : BodyPart = { element = #Electric; mutation = #Solid };
-    { id; element = #Electric; head = electricSolid; body = electricSolid; tail = electricSolid };
+    let grassSolid : BodyPart = { element = #Grass; mutation = #Solid };
+    { id; element = #Grass; head = grassSolid; body = grassSolid; tail = grassSolid };
   };
 }

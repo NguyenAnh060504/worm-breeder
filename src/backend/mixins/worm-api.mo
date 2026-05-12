@@ -4,13 +4,8 @@ import WormLib "../lib/worm";
 
 mixin (worms : List.List<WormTypes.Worm>, state : { var nextWormId : Nat }) {
 
-  /// Returns all worms. Auto-creates a starter worm if the collection is empty.
+  /// Returns all worms.
   public shared func getWorms() : async [WormTypes.Worm] {
-    if (worms.isEmpty()) {
-      let starter = WormLib.starterWorm(state.nextWormId);
-      state.nextWormId += 1;
-      worms.add(starter);
-    };
     worms.toArray();
   };
 

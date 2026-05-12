@@ -26,14 +26,14 @@
 @layer base {
   :root {
     /* Dark Fantasy Magic Garden - Deep Night Palette */
-    --background: 98 0.01 80;
-    --foreground: 15 0.04 265;
+    --background: 97 0.01 80;
+    --foreground: 18 0.03 265;
 
     --card: 99 0.005 80;
-    --card-foreground: 15 0.04 265;
+    --card-foreground: 18 0.03 265;
 
     --popover: 99 0.005 80;
-    --popover-foreground: 15 0.04 265;
+    --popover-foreground: 18 0.03 265;
 
     --primary: 72 0.24 130;
     --primary-foreground: 99 0.005 80;
@@ -41,8 +41,8 @@
     --secondary: 65 0.22 40;
     --secondary-foreground: 99 0.005 80;
 
-    --muted: 88 0.03 80;
-    --muted-foreground: 50 0.05 265;
+    --muted: 92 0.02 80;
+    --muted-foreground: 42 0.05 265;
 
     --accent: 55 0.26 25;
     --accent-foreground: 99 0.005 80;
@@ -70,7 +70,7 @@
     --chart-5: 55 0.26 25;
 
     --sidebar: 99 0.005 80;
-    --sidebar-foreground: 15 0.04 265;
+    --sidebar-foreground: 18 0.03 265;
     --sidebar-primary: 72 0.24 130;
     --sidebar-primary-foreground: 99 0.005 80;
     --sidebar-accent: 55 0.26 25;
@@ -127,7 +127,7 @@
     @apply rounded-2xl bg-card border-2 border-border shadow-sm transition-all duration-200 hover:shadow-md cursor-pointer;
   }
   .worm-card.selected {
-    @apply border-primary shadow-lg ring-2 ring-primary/30 scale-105;
+    @apply border-primary shadow-lg ring-2 ring-primary/30;
   }
   .body-part {
     @apply rounded-lg border border-border bg-muted/40 flex items-center justify-center text-sm font-medium transition-all duration-200;
@@ -136,7 +136,7 @@
     @apply border-primary bg-primary/10 shadow-md;
   }
   .breed-button {
-    @apply bg-primary text-primary-foreground font-semibold rounded-full px-6 py-3 transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95;
+    @apply bg-primary text-primary-foreground font-semibold rounded-full px-6 py-3 transition-all duration-200 hover:shadow-lg;
   }
   .breed-button:disabled {
     @apply opacity-50 cursor-not-allowed;
@@ -159,7 +159,6 @@
 .drop-zone.drag-over {
   background: oklch(var(--primary) / 0.2) !important;
   border: 2px solid oklch(var(--primary) / 0.6) !important;
-  transform: scale(1.02);
 }
 
 /* Scrollbar styling */

@@ -143,3 +143,24 @@ export function breedWorms(
 }
 
 export const MAX_WORMS = 20;
+
+/** Returns the worm's display name based on body part element purity */
+export function getWormName(worm: {
+  head: { element: Element };
+  body: { element: Element };
+  tail: { element: Element };
+}): string {
+  if (
+    worm.head.element === worm.body.element &&
+    worm.body.element === worm.tail.element
+  ) {
+    const names: Record<Element, string> = {
+      [Element.Electric]: "Sâu Sét",
+      [Element.Earth]: "Sâu Đất",
+      [Element.Grass]: "Sâu Cỏ",
+      [Element.Water]: "Sâu Nước",
+    };
+    return names[worm.head.element];
+  }
+  return "Sâu Lai";
+}
