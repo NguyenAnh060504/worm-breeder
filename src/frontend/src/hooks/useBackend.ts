@@ -1,17 +1,24 @@
+import { useQueryClient } from "@tanstack/react-query";
 /**
  * useBackend.ts — worm game state: selection, breeding, loading
  */
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { Element, MutationVariant } from "../backend";
 import type { Worm, WormId } from "../backend";
 import { breedWorms } from "../types";
-import { useAddWorm, useDeleteWorm, useGetWorms } from "./useQueries";
+import {
+  useAddWorm,
+  useDeleteWorm,
+  useGetWorms,
+  useResetGame,
+} from "./useQueries";
 
 export function useWormGame() {
   const { data: worms = [], isLoading } = useGetWorms();
   const addWormMut = useAddWorm();
   const deleteWormMut = useDeleteWorm();
+  const resetGameMut = useResetGame();
+  const queryClient = useQueryClient();
 
   const [selectedIds, setSelectedIds] = useState<WormId[]>([]);
   const [isBreeding, setIsBreeding] = useState(false);
@@ -150,29 +157,24 @@ export function useWormGame() {
     [deleteWormMut],
   );
 
-  /** Reset: delete all worms then add 1 starter grass worm */
+  /** Reset: delete all worms then add 1 starter grass worm.
+   *  Reads a fresh snapshot from the React Query cache to avoid
+   *  stale-closure bugs when called right after initial load.
+   */
   const resetGame = useCallback(async () => {
-    setIsResetting(true);
     setSelectedIds([]);
+    setIsResetting(true);
     try {
-      // Delete all current worms sequentially
-      for (const w of worms) {
-        await deleteWormMut.mutateAsync(w.id);
-      }
-      // Add 1 starter grass worm
-      await addWormMut.mutateAsync({
-        element: Element.Grass,
-        head: { element: Element.Grass, mutation: MutationVariant.Solid },
-        body: { element: Element.Grass, mutation: MutationVariant.Solid },
-        tail: { element: Element.Grass, mutation: MutationVariant.Solid },
-      });
+      await resetGameMut.mutateAsync();
       toast.success("🌱 Đã bắt đầu lại! Chào mừng con Sâu Cỏ mới!");
-    } catch {
+    } catch (err) {
+      console.error("[resetGame] failed:", err);
       toast.error("Bắt đầu lại thất bại, thử lại nhé!");
     } finally {
+      await queryClient.invalidateQueries({ queryKey: ["worms"] });
       setIsResetting(false);
     }
-  }, [worms, addWormMut, deleteWormMut]);
+  }, [resetGameMut, queryClient]);
 
   return {
     worms,

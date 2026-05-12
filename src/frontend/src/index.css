@@ -27,22 +27,22 @@
   :root {
     /* Dark Fantasy Magic Garden - Deep Night Palette */
     --background: 97 0.01 80;
-    --foreground: 18 0.03 265;
+    --foreground: 15 0.01 0;
 
     --card: 99 0.005 80;
-    --card-foreground: 18 0.03 265;
+    --card-foreground: 15 0.01 0;
 
     --popover: 99 0.005 80;
-    --popover-foreground: 18 0.03 265;
+    --popover-foreground: 15 0.01 0;
 
-    --primary: 72 0.24 130;
+    --primary: 15 0.01 0;
     --primary-foreground: 99 0.005 80;
 
     --secondary: 65 0.22 40;
     --secondary-foreground: 99 0.005 80;
 
     --muted: 92 0.02 80;
-    --muted-foreground: 42 0.05 265;
+    --muted-foreground: 25 0.02 0;
 
     --accent: 55 0.26 25;
     --accent-foreground: 99 0.005 80;
@@ -70,7 +70,7 @@
     --chart-5: 55 0.26 25;
 
     --sidebar: 99 0.005 80;
-    --sidebar-foreground: 18 0.03 265;
+    --sidebar-foreground: 15 0.01 0;
     --sidebar-primary: 72 0.24 130;
     --sidebar-primary-foreground: 99 0.005 80;
     --sidebar-accent: 55 0.26 25;
@@ -124,19 +124,19 @@
     @apply bg-[oklch(var(--worm-water))] text-white font-semibold rounded-full px-3 py-1;
   }
   .worm-card {
-    @apply rounded-2xl bg-card border-2 border-border shadow-sm transition-all duration-200 hover:shadow-md cursor-pointer;
+    @apply rounded-2xl bg-card border-2 border-border cursor-pointer;
   }
   .worm-card.selected {
-    @apply border-primary shadow-lg ring-2 ring-primary/30;
+    @apply border-primary ring-2 ring-primary/30;
   }
   .body-part {
-    @apply rounded-lg border border-border bg-muted/40 flex items-center justify-center text-sm font-medium transition-all duration-200;
+    @apply rounded-lg border border-border bg-muted/40 flex items-center justify-center text-sm font-medium;
   }
   .body-part.highlighted {
     @apply border-primary bg-primary/10 shadow-md;
   }
   .breed-button {
-    @apply bg-primary text-primary-foreground font-semibold rounded-full px-6 py-3 transition-all duration-200 hover:shadow-lg;
+    @apply bg-primary text-primary-foreground font-semibold rounded-full px-6 py-3;
   }
   .breed-button:disabled {
     @apply opacity-50 cursor-not-allowed;
@@ -150,10 +150,7 @@
 }
 
 /* Room gradient backgrounds -- DEPRECATED for worm game */
-/* Worm game card bounce entrance */
-.worm-enter {
-  animation: fade-in-up 0.4s ease-out;
-}
+/* Worm game card entrance */
 
 /* Worm game drop zone feedback */
 .drop-zone.drag-over {

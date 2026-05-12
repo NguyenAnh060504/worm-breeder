@@ -38,6 +38,7 @@ export interface _SERVICE {
   'addWorm' : ActorMethod<[NewWorm], { 'ok' : WormId } | { 'err' : string }>,
   'deleteWorm' : ActorMethod<[WormId], { 'ok' : null } | { 'err' : string }>,
   'getWorms' : ActorMethod<[], Array<Worm>>,
+  'resetGame' : ActorMethod<[], Worm>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

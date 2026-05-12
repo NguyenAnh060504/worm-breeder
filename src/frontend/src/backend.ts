@@ -136,6 +136,7 @@ export interface backendInterface {
         err: string;
     }>;
     getWorms(): Promise<Array<Worm>>;
+    resetGame(): Promise<Worm>;
 }
 import type { BodyPart as _BodyPart, Element as _Element, MutationVariant as _MutationVariant, NewWorm as _NewWorm, Worm as _Worm, WormId as _WormId } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -192,6 +193,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getWorms();
             return from_candid_vec_n11(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async resetGame(): Promise<Worm> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.resetGame();
+                return from_candid_Worm_n12(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.resetGame();
+            return from_candid_Worm_n12(this._uploadFile, this._downloadFile, result);
         }
     }
 }

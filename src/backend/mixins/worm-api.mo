@@ -36,4 +36,21 @@ mixin (worms : List.List<WormTypes.Worm>, state : { var nextWormId : Nat }) {
       };
     };
   };
+
+  /// Atomic reset: clears all worms, resets counter, inserts one starter Grass worm.
+  /// Returns the new starter worm so the frontend can confirm success.
+  public shared func resetGame() : async WormTypes.Worm {
+    // Clear all worms by removing from the back
+    var i = worms.size();
+    while (i > 0) {
+      ignore worms.removeLast();
+      i -= 1;
+    };
+    // Reset counter and insert starter worm
+    state.nextWormId := 1;
+    let starter = WormLib.starterWorm(state.nextWormId);
+    state.nextWormId += 1;
+    worms.add(starter);
+    starter;
+  };
 }

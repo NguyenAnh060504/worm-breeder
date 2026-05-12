@@ -1,9 +1,9 @@
-import { createActor } from "@/backend";
+import { type Worm, createActor } from "@/backend";
 import type { NewWorm, WormId } from "@/backend";
 import { useActor } from "@caffeineai/core-infrastructure";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export type { NewWorm, WormId };
+export type { NewWorm, WormId, Worm };
 
 export function useGetWorms() {
   const { actor, isFetching } = useActor(createActor);
@@ -43,5 +43,16 @@ export function useDeleteWorm() {
       return res.ok;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["worms"] }),
+  });
+}
+export function useResetGame() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<Worm> => {
+      if (!actor) throw new Error("Actor not ready");
+      return actor.resetGame();
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["worms"] }),
   });
 }

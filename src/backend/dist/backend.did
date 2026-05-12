@@ -44,4 +44,5 @@ service : {
                                  ok;
                                });
   getWorms: () -> (vec Worm);
+  resetGame: () -> (Worm);
 }

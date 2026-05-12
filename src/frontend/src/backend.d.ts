@@ -54,4 +54,5 @@ export interface backendInterface {
         err: string;
     }>;
     getWorms(): Promise<Array<Worm>>;
+    resetGame(): Promise<Worm>;
 }

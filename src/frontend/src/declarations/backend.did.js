@@ -52,6 +52,7 @@ export const idlService = IDL.Service({
       [],
     ),
   'getWorms' : IDL.Func([], [IDL.Vec(Worm)], []),
+  'resetGame' : IDL.Func([], [Worm], []),
 });
 
 export const idlInitArgs = [];
@@ -101,6 +102,7 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'getWorms' : IDL.Func([], [IDL.Vec(Worm)], []),
+    'resetGame' : IDL.Func([], [Worm], []),
   });
 };
 

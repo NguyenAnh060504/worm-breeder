@@ -43,7 +43,20 @@ export const mockBackend: backendInterface = {
     return { __kind__: "ok", ok: id as WormId };
   },
 
-  deleteWorm: async (id) => {
+
+  resetGame: async () => {
+    worms.splice(0, worms.length);
+    nextId = 2;
+    const starter: Worm = {
+      id: BigInt(1),
+      element: Element.Grass,
+      head: { element: Element.Grass, mutation: MutationVariant.Solid },
+      body: { element: Element.Grass, mutation: MutationVariant.Solid },
+      tail: { element: Element.Grass, mutation: MutationVariant.Solid },
+    };
+    worms.push(starter);
+    return starter;
+  },  deleteWorm: async (id) => {
     const idx = worms.findIndex((w) => w.id === id);
     if (idx === -1) return { __kind__: "err", err: "Not found" };
     worms.splice(idx, 1);
