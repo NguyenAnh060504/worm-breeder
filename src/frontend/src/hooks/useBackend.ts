@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 /**
  * useBackend.ts — worm game state: selection, breeding, loading
  */
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Worm, WormId } from "../backend";
 import { breedWorms } from "../types";
@@ -23,6 +23,11 @@ export function useWormGame() {
   const [selectedIds, setSelectedIds] = useState<WormId[]>([]);
   const [isBreeding, setIsBreeding] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  // Keep a ref to the latest worms so the interval always sees fresh data
+  const wormsRef = useRef(worms);
+  useEffect(() => {
+    wormsRef.current = worms;
+  }, [worms]);
 
   const toggleSelect = useCallback((id: WormId) => {
     setSelectedIds((prev) => {
@@ -33,6 +38,54 @@ export function useWormGame() {
   }, []);
 
   const clearSelection = useCallback(() => setSelectedIds([]), []);
+  // Auto-breed every 10 seconds
+  useEffect(() => {
+    if (isLoading) return;
+    const intervalId = setInterval(async () => {
+      const current = wormsRef.current;
+      if (current.length >= 20) return;
+      if (current.length === 1) {
+        const solo = current[0];
+        const child = breedWorms(
+          solo.element,
+          solo.head,
+          solo.body,
+          solo.tail,
+          solo.element,
+          solo.head,
+          solo.body,
+          solo.tail,
+        );
+        try {
+          await addWormMut.mutateAsync(child);
+        } catch {
+          /* silent */
+        }
+      } else if (current.length >= 2) {
+        const i = Math.floor(Math.random() * current.length);
+        let j = Math.floor(Math.random() * (current.length - 1));
+        if (j >= i) j++;
+        const p1 = current[i];
+        const p2 = current[j];
+        const child = breedWorms(
+          p1.element,
+          p1.head,
+          p1.body,
+          p1.tail,
+          p2.element,
+          p2.head,
+          p2.body,
+          p2.tail,
+        );
+        try {
+          await addWormMut.mutateAsync(child);
+        } catch {
+          /* silent */
+        }
+      }
+    }, 10000);
+    return () => clearInterval(intervalId);
+  }, [isLoading, addWormMut]);
 
   const breed = useCallback(
     async (parent1: Worm, parent2: Worm) => {
@@ -64,7 +117,7 @@ export function useWormGame() {
     [worms.length, addWormMut],
   );
 
-  // Self-breeding: single worm breeds with itself
+  /** Self-breeding: single worm breeds with itself */
   const breedSelf = useCallback(async () => {
     if (worms.length >= 20) {
       toast.error("Tổ đã đầy! Hãy xóa bớt sâu để nhân giống.");
@@ -93,57 +146,6 @@ export function useWormGame() {
     }
   }, [worms, addWormMut]);
 
-  /** Selective breed: keep one locked part exactly, breed the other 2 */
-  const breedSelective = useCallback(
-    async (worm: Worm, lockedPart: "head" | "body" | "tail") => {
-      if (worms.length >= 20) {
-        toast.error("Tổ đã đầy! Hãy xóa bớt sâu để lai giữ bộ phận.");
-        return;
-      }
-      // Pick a second parent: random OTHER worm, or self if solo
-      const others = worms.filter((w) => w.id !== worm.id);
-      const p2 =
-        others.length > 0
-          ? others[Math.floor(Math.random() * others.length)]
-          : worm;
-
-      const bred = breedWorms(
-        worm.element,
-        worm.head,
-        worm.body,
-        worm.tail,
-        p2.element,
-        p2.head,
-        p2.body,
-        p2.tail,
-      );
-
-      // Force-override the locked part with the original worm's part
-      const child = {
-        ...bred,
-        [lockedPart]: { ...worm[lockedPart] },
-      };
-
-      setIsBreeding(true);
-      try {
-        await addWormMut.mutateAsync(child);
-        const partNames: Record<string, string> = {
-          head: "Đầu",
-          body: "Thân",
-          tail: "Đuôi",
-        };
-        toast.success(
-          `🧬 Lai thành công! ${partNames[lockedPart]} được giữ lại!`,
-        );
-      } catch {
-        toast.error("Lai giữ bộ phận thất bại, thử lại nhé!");
-      } finally {
-        setIsBreeding(false);
-      }
-    },
-    [worms, addWormMut],
-  );
-
   const deleteWorm = useCallback(
     async (id: WormId) => {
       try {
@@ -157,10 +159,6 @@ export function useWormGame() {
     [deleteWormMut],
   );
 
-  /** Reset: delete all worms then add 1 starter grass worm.
-   *  Reads a fresh snapshot from the React Query cache to avoid
-   *  stale-closure bugs when called right after initial load.
-   */
   const resetGame = useCallback(async () => {
     setSelectedIds([]);
     setIsResetting(true);
@@ -184,7 +182,6 @@ export function useWormGame() {
     clearSelection,
     breed,
     breedSelf,
-    breedSelective,
     deleteWorm,
     isBreeding,
     resetGame,

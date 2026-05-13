@@ -42,7 +42,27 @@ export function useDeleteWorm() {
       if (res.__kind__ === "err") throw new Error(res.err);
       return res.ok;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["worms"] }),
+    onMutate: async (id: WormId) => {
+      // Cancel any in-flight refetches so they don't overwrite the optimistic update
+      await qc.cancelQueries({ queryKey: ["worms"] });
+      // Snapshot the previous value for rollback
+      const previous = qc.getQueryData<Worm[]>(["worms"]);
+      // Optimistically remove the worm immediately
+      qc.setQueryData<Worm[]>(["worms"], (old) =>
+        old ? old.filter((w) => w.id !== id) : [],
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      // Rollback to the snapshot if the mutation fails
+      if (context?.previous !== undefined) {
+        qc.setQueryData(["worms"], context.previous);
+      }
+    },
+    onSettled: () => {
+      // Sync with server in the background after success or error
+      qc.invalidateQueries({ queryKey: ["worms"] });
+    },
   });
 }
 export function useResetGame() {

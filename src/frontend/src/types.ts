@@ -12,74 +12,47 @@ export const ELEMENT_META: Record<
     bgClass: string;
     borderClass: string;
     textClass: string;
-    glowColor: string;
   }
 > = {
   [Element.Electric]: {
     name: "Sâu Sét",
     emoji: "⚡",
-    bgClass: "bg-[oklch(var(--worm-electric)/0.2)]",
+    bgClass: "bg-[oklch(var(--worm-electric)/0.12)]",
     borderClass: "border-[oklch(var(--worm-electric))]",
     textClass: "text-[oklch(var(--worm-electric-dark))]",
-    glowColor: "oklch(var(--worm-electric))",
   },
   [Element.Earth]: {
     name: "Sâu Đất",
     emoji: "🌿",
-    bgClass: "bg-[oklch(var(--worm-earth)/0.2)]",
+    bgClass: "bg-[oklch(var(--worm-earth)/0.12)]",
     borderClass: "border-[oklch(var(--worm-earth))]",
     textClass: "text-[oklch(var(--worm-earth))]",
-    glowColor: "oklch(var(--worm-earth))",
   },
   [Element.Grass]: {
     name: "Sâu Cỏ",
     emoji: "🍃",
-    bgClass: "bg-[oklch(var(--worm-grass)/0.2)]",
+    bgClass: "bg-[oklch(var(--worm-grass)/0.12)]",
     borderClass: "border-[oklch(var(--worm-grass))]",
     textClass: "text-[oklch(var(--worm-grass))]",
-    glowColor: "oklch(var(--worm-grass))",
   },
   [Element.Water]: {
     name: "Sâu Nước",
     emoji: "💧",
-    bgClass: "bg-[oklch(var(--worm-water)/0.2)]",
+    bgClass: "bg-[oklch(var(--worm-water)/0.12)]",
     borderClass: "border-[oklch(var(--worm-water))]",
     textClass: "text-[oklch(var(--worm-water))]",
-    glowColor: "oklch(var(--worm-water))",
   },
 };
 
 export const MUTATION_META: Record<
   MutationVariant,
-  { name: string; emoji: string; patternClass: string }
+  { name: string; emoji: string }
 > = {
-  [MutationVariant.Solid]: { name: "Đặc", emoji: "⬛", patternClass: "" },
-  [MutationVariant.Striped]: {
-    name: "Sọc",
-    emoji: "🟧",
-    patternClass: "striped",
-  },
-  [MutationVariant.Spotted]: {
-    name: "Chấm",
-    emoji: "🟡",
-    patternClass: "spotted",
-  },
-  [MutationVariant.Gradient]: {
-    name: "Dải Màu",
-    emoji: "🌈",
-    patternClass: "gradient",
-  },
-  [MutationVariant.Metallic]: {
-    name: "Kim Loại",
-    emoji: "✨",
-    patternClass: "metallic",
-  },
-};
-
-export const PART_LABELS: Record<"head" | "body" | "tail", string> = {
-  head: "Đầu",
-  body: "Thân",
-  tail: "Đuôi",
+  [MutationVariant.Solid]: { name: "Đặc", emoji: "⬛" },
+  [MutationVariant.Striped]: { name: "Sọc", emoji: "🟧" },
+  [MutationVariant.Spotted]: { name: "Chấm", emoji: "🟡" },
+  [MutationVariant.Gradient]: { name: "Dải Màu", emoji: "🌈" },
+  [MutationVariant.Metallic]: { name: "Kim Loại", emoji: "✨" },
 };
 
 export const ALL_ELEMENTS: Element[] = [
@@ -144,8 +117,9 @@ export function breedWorms(
 
 export const MAX_WORMS = 20;
 
-/** Returns the worm's display name based on body part element purity */
+/** Returns the worm's display name based on element purity */
 export function getWormName(worm: {
+  id: bigint;
   head: { element: Element };
   body: { element: Element };
   tail: { element: Element };
@@ -162,5 +136,5 @@ export function getWormName(worm: {
     };
     return names[worm.head.element];
   }
-  return "Sâu Lai";
+  return `Sâu #${worm.id}`;
 }
